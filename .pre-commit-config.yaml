@@ -1,0 +1,32 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.3.0
+    hooks:
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/oxc-project/mirrors-oxlint
+    rev: v1.74.0
+    hooks:
+      - id: oxlint
+        name: oxlint (frontend)
+        args: ['--fix']
+        files: ^frontend/
+        verbose: true
+
+  - repo: https://github.com/gpsgate/mirrors-prettier
+    rev: v3.5.3
+    hooks:
+      - id: prettier
+        args: ['--write']
+
+  - repo: local
+    hooks:
+      - id: typescript-check
+        name: typescript check (frontend)
+        entry: npx tsc --noEmit
+        language: system
+        files: ^frontend/.*\.(ts|tsx)$
+        pass_filenames: false
+        working_directory: frontend/
