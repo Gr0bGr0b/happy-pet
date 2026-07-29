@@ -11,7 +11,7 @@ from app.database import Base
 from app.models.cat import Cat  # noqa: F401 — ensure model is registered
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+config.set_main_option("sqlalchemy.url", settings.db_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
