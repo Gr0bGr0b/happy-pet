@@ -121,3 +121,41 @@ CREATE TABLE injection_logs (
 CREATE INDEX idx_injection_logs_cat_id ON injection_logs(cat_id);
 CREATE INDEX idx_injection_logs_created_at ON injection_logs(created_at DESC);
 ```
+
+---
+
+## Migrations (Alembic)
+
+Le schema est gere via Alembic. Les migrations se trouvent dans `backend/alembic/versions/`.
+
+### Commandes utiles
+
+```bash
+# Depuis backend/
+# Appliquer toutes les migrations
+alembic upgrade head
+
+# Revenir en arriere d'une migration
+alembic downgrade -1
+
+# Creer une nouvelle migration apres un changement de model
+alembic revision --autogenerate -m "description"
+
+# Voir l'historique des migrations
+alembic history
+
+# Voir la migration courante
+alembic current
+```
+
+### Fichiers
+
+| Fichier | Role |
+|---------|------|
+| `alembic.ini` | Configuration Alembic (URL de DB, chemin du script) |
+| `alembic/env.py` | Environnement async, charge les models SQLAlchemy |
+| `alembic/versions/001_create_cats_table.py` | Premiere migration : creation de la table `cats` |
+
+### Note
+
+La migration `001_create_cats_table.py` est equivalente au SQL de creation ci-dessus. En development, on peut aussi utiliser `Base.metadata.create_all()` dans `app/main.py` (via le lifespan) pour creer les tables directement sans Alembic. Alembic est utile pour les migrations futures quand le schema evolue.

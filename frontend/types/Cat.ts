@@ -7,4 +7,5 @@ export interface Cat {
     imageUrl: string | undefined;
     dateOfBirth: string;
     foodPerRation?: number;
+    foodName?: string;
 }
