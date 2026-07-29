@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Text, View, ScrollView, Pressable, Platform, useWindowDimensions } from "react-native";
+import { Text, View, ScrollView, Pressable, Platform, useWindowDimensions, ActivityIndicator } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { NextInjection } from "./components/NextInjection";
@@ -7,8 +7,11 @@ import { LogsTimeline } from "./components/LogsTimeline";
 import { FoodInfo } from "./components/FoodInfo";
 import { useTheme } from "./context/ThemeContext";
 import { calculateAge } from "./utils/dateUtils";
+import { useCat } from "./hooks/useCat";
 import type { Cat } from "../types/Cat";
 
+// ─── Hero header: cat identity card ────────────────────────────────────────
+// Displays the cat's name, breed, age, weight, colour, plus theme/user icons.
 const HeroHeader = ({
   cat,
   isDark,
@@ -86,6 +89,7 @@ const HeroHeader = ({
         </View>
       </View>
 
+      {/* Badge row: age, weight, colour */}
       <View style={{ flexDirection: "row", gap: 8 }}>
         {[
           { icon: "cake-candles" as const, label: `${age} yrs`, iconColor: "#FFD980" },
@@ -117,6 +121,8 @@ const HeroHeader = ({
   );
 };
 
+// ─── Home screen ───────────────────────────────────────────────────────────
+// Orchestrates data fetching, loading/error states, and the main layout.
 const Home = () => {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -124,19 +130,49 @@ const Home = () => {
   const isWeb = Platform.OS === "web";
   const isCompact = width < 500;
 
-  const [foodPerRation, setFoodPerRation] = useState<number | undefined>(150);
-  const [foodName, setFoodName] = useState<string | undefined>("Hills Urinary");
+  // Fetch the single cat from the API on mount.
+  const { cat, loading, error, refetch } = useCat();
 
-  const cat: Cat = {
-    id: "1",
-    name: "Minou",
-    breed: "Persan",
-    color: "#FF6B9D",
-    weight: 4.5,
-    imageUrl: undefined,
-    dateOfBirth: "2020-05-15",
-  };
+  // Editable food info – starts undefined and falls back to the API value
+  // so user edits survive re-fetches.
+  const [foodPerRation, setFoodPerRation] = useState<number | undefined>();
+  const [foodName, setFoodName] = useState<string | undefined>();
 
+  const effectiveFoodPerRation = foodPerRation ?? cat?.foodPerRation;
+  const effectiveFoodName = foodName ?? cat?.foodName;
+
+  // ── Loading state ──────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: isDark ? "#1E1E2E" : "#F8F9FE", paddingTop: insets.top }}>
+        <ActivityIndicator size="large" color="#6C63FF" />
+      </View>
+    );
+  }
+
+  // ── Error state ────────────────────────────────────────────────────────
+  if (error || !cat) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: isDark ? "#1E1E2E" : "#F8F9FE", paddingTop: insets.top }}>
+        <Text style={{ color: isDark ? "#fff" : "#333", fontSize: 16, fontFamily: "Nunito_600SemiBold", textAlign: "center", marginBottom: 12, paddingHorizontal: 24 }}>
+          {error ?? "Cat not found"}
+        </Text>
+        <Pressable
+          onPress={refetch}
+          style={{
+            backgroundColor: "#6C63FF",
+            paddingHorizontal: 24,
+            paddingVertical: 12,
+            borderRadius: 12,
+          }}
+        >
+          <Text style={{ color: "#fff", fontFamily: "Nunito_700Bold", fontSize: 14 }}>Réessayer</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  // ── Success layout ─────────────────────────────────────────────────────
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? "#1E1E2E" : "#F8F9FE" }}>
       <ScrollView
@@ -145,6 +181,7 @@ const Home = () => {
       >
         <HeroHeader cat={cat} isDark={isDark} toggleTheme={toggleTheme} />
 
+        {/* Content area – side-by-side on wide web, stacked on mobile */}
         <View
           style={{
             paddingHorizontal: isCompact ? 14 : 20,
@@ -160,18 +197,20 @@ const Home = () => {
               gap: 14,
             }}
           >
+            {/* Left column: injection dose + food info */}
             <View style={{ flex: 1, gap: 14 }}>
               <NextInjection />
               <FoodInfo
                 weight={cat.weight}
-                foodPerRation={foodPerRation}
-                foodName={foodName}
+                foodPerRation={effectiveFoodPerRation}
+                foodName={effectiveFoodName}
                 onUpdate={(data) => {
                   if (data.foodPerRation !== undefined) setFoodPerRation(data.foodPerRation);
                   if (data.foodName !== undefined) setFoodName(data.foodName);
                 }}
               />
             </View>
+            {/* Right column: injection history timeline */}
             <View style={{ flex: 1 }}>
               <LogsTimeline />
             </View>
