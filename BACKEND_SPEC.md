@@ -6,39 +6,21 @@ Reference documentation for recreating the backend in Rust (Axum + SeaORM).
 
 ## Tech Stack (Original)
 
-| Component   | Technology         | Version   |
-|-------------|-------------------|-----------|
-| Language    | Python            | 3.10      |
-| Framework   | FastAPI           | >=0.123.9 |
-| ORM         | SQLAlchemy        | >=2.0.44  |
-| Validation  | Pydantic          | >=2.12.5  |
-| Server      | Uvicorn           | >=0.38.0  |
-| Database    | PostgreSQL        | 17.7      |
-| Pkg Manager | UV                | -         |
+| Component   | Technology | Version   |
+| ----------- | ---------- | --------- |
+| Language    | Python     | 3.10      |
+| Framework   | FastAPI    | >=0.123.9 |
+| ORM         | SQLAlchemy | >=2.0.44  |
+| Validation  | Pydantic   | >=2.12.5  |
+| Server      | Uvicorn    | >=0.38.0  |
+| Database    | PostgreSQL | 17.7      |
+| Pkg Manager | UV         | -         |
 
 ---
 
 ## Project Structure
 
-```
-backend/
-├── Cargo.toml              # (to create)
-├── Dockerfile
-└── src/
-    ├── main.rs
-    ├── config.rs
-    ├── db.rs
-    ├── models/
-    │   ├── mod.rs
-    │   └── cat.rs
-    ├── schemas/
-    │   ├── mod.rs
-    │   └── cat.rs
-    └── routes/
-        ├── mod.rs
-        └── cats.rs
-```
-
+````
 ---
 
 ## Database Schema
@@ -80,19 +62,19 @@ Create a new cat.
   "color": "Black",
   "weight": 4.5
 }
-```
+````
 
 **Validation Rules:**
 
-| Field      | Type   | Rules                              |
-|------------|--------|------------------------------------|
-| `name`     | string | min 1, max 20 characters           |
-| `age`      | int    | min 0, max 25                      |
-| `breed`    | string | min 1, max 30 characters           |
-| `sex`      | enum   | `"Male"` or `"Female"`             |
-| `diabetes` | bool   | optional, defaults to `false`      |
-| `color`    | string | min 1, max 20 characters           |
-| `weight`   | float  | > 0, <= 25                         |
+| Field      | Type   | Rules                         |
+| ---------- | ------ | ----------------------------- |
+| `name`     | string | min 1, max 20 characters      |
+| `age`      | int    | min 0, max 25                 |
+| `breed`    | string | min 1, max 30 characters      |
+| `sex`      | enum   | `"Male"` or `"Female"`        |
+| `diabetes` | bool   | optional, defaults to `false` |
+| `color`    | string | min 1, max 20 characters      |
+| `weight`   | float  | > 0, <= 25                    |
 
 **Response (200 OK):**
 
@@ -124,7 +106,7 @@ backend:
     dockerfile: Dockerfile
   container_name: backend_app
   ports:
-    - "8080:8080"
+    - '8080:8080'
   depends_on:
     - postgres
   environment:
@@ -147,7 +129,7 @@ postgres:
   volumes:
     - postgres_data:/var/lib/postgresql/data
   ports:
-    - "5432:5432"
+    - '5432:5432'
   restart: unless-stopped
 ```
 
@@ -165,12 +147,12 @@ postgresql://postgres:postgres@postgres:5432/happy_pet_db
 
 ### Environment Variables
 
-| Variable    | Value             |
-|-------------|-------------------|
-| `DB_HOST`   | `postgres` (Docker) or `localhost` (local) |
-| `DB_USER`   | `postgres`        |
-| `DB_PASSWORD`| `postgres`       |
-| `DB_NAME`   | `happy_pet_db`    |
+| Variable      | Value                                      |
+| ------------- | ------------------------------------------ |
+| `DB_HOST`     | `postgres` (Docker) or `localhost` (local) |
+| `DB_USER`     | `postgres`                                 |
+| `DB_PASSWORD` | `postgres`                                 |
+| `DB_NAME`     | `happy_pet_db`                             |
 
 > Alternatively, use a single `DATABASE_URL` env var: `postgresql://postgres:postgres@localhost:5432/happy_pet_db`
 
@@ -243,13 +225,13 @@ The frontend runs on port `3000` (Expo dev server) and the backend on port `8080
 
 ## Suggested Rust Crates
 
-| Purpose       | Crate       | Notes                                    |
-|---------------|-------------|------------------------------------------|
-| Web framework | `axum`      | 0.8.x                                    |
-| ORM           | `sea-orm`   | 1.1.x, with `sqlx-postgres` feature      |
-| Serialization | `serde`     | With `derive` feature                     |
-| JSON          | `serde_json`|                                           |
-| Async runtime | `tokio`     | With `full` feature                       |
-| Env vars      | `dotenvy`   |                                           |
-| CORS          | `tower-http`| With `cors` feature                       |
-| Validation    | `validator` | With `derive` feature                     |
+| Purpose       | Crate        | Notes                               |
+| ------------- | ------------ | ----------------------------------- |
+| Web framework | `axum`       | 0.8.x                               |
+| ORM           | `sea-orm`    | 1.1.x, with `sqlx-postgres` feature |
+| Serialization | `serde`      | With `derive` feature               |
+| JSON          | `serde_json` |                                     |
+| Async runtime | `tokio`      | With `full` feature                 |
+| Env vars      | `dotenvy`    |                                     |
+| CORS          | `tower-http` | With `cors` feature                 |
+| Validation    | `validator`  | With `derive` feature               |
