@@ -3,14 +3,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import engine, Base
-from app.routers import cats
+from app.routers import cats, injection_logs
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # The schema is owned by Alembic; migrations run before the server starts.
     yield
 
 
@@ -36,3 +34,4 @@ async def health():
 
 
 app.include_router(cats.router, prefix="/api/v1/cats")
+app.include_router(injection_logs.router, prefix="/api/v1/injections")
