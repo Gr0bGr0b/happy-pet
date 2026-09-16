@@ -11,7 +11,6 @@ import { RecentLogsCard } from '@/components/injection/RecentLogsCard';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Screen } from '@/components/ui/Screen';
 import { DOSAGE_DEFAULT } from '@/constants/injections';
-import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useCooldown } from '@/hooks/useCooldown';
 import { useWeightHistory } from '@/hooks/useWeightHistory';
 import { useCat } from '@/providers/CatProvider';
@@ -19,7 +18,6 @@ import { useInjections } from '@/providers/InjectionProvider';
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { isWide } = useBreakpoint();
   const { cat, loading, error, refetch } = useCat();
   const { recentGroups, monthlyDosage, lastLog, addInjection, submitting } =
     useInjections();
@@ -62,7 +60,8 @@ export default function DashboardScreen() {
 
         {/* Mobile-first single column; constrained to a phone width on wide screens. */}
         <View className="w-full max-w-[520px] self-center gap-3.5 px-4 pt-4">
-          <View className={isWide ? 'flex-row gap-3.5' : 'gap-3.5'}>
+          {/* Recap: always side by side, including on a phone. */}
+          <View className="flex-row gap-3.5">
             <View className="flex-1">
               <WeightTrendCard
                 points={weight.points}

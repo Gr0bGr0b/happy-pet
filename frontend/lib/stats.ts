@@ -1,21 +1,6 @@
 import { RECENT_LOGS_WINDOW_HOURS, TREND_MONTHS } from '@/constants/injections';
-import { hoursToMs } from '@/lib/date';
+import { hoursToMs, shortMonthLabel } from '@/lib/date';
 import type { DosagePoint, InjectionLog, MonthBucket } from '@/types/injection';
-
-const MONTH_LABELS = [
-  'janv.',
-  'févr.',
-  'mars',
-  'avr.',
-  'mai',
-  'juin',
-  'juil.',
-  'août',
-  'sept.',
-  'oct.',
-  'nov.',
-  'déc.'
-];
 
 /** The last `count` months, oldest first, current month included. */
 export function monthBuckets(
@@ -28,7 +13,7 @@ export function monthBuckets(
     const end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
     buckets.push({
       key: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`,
-      label: MONTH_LABELS[start.getMonth()],
+      label: shortMonthLabel(start),
       start,
       end
     });

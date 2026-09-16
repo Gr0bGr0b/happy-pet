@@ -3,6 +3,26 @@
 
 const OFFSET_RE = /(Z|[+-]\d{2}:?\d{2})$/;
 
+const SHORT_MONTHS = [
+  'janv.',
+  'févr.',
+  'mars',
+  'avr.',
+  'mai',
+  'juin',
+  'juil.',
+  'août',
+  'sept.',
+  'oct.',
+  'nov.',
+  'déc.'
+];
+
+/** Abbreviated French month name, used for chart x axes. */
+export function shortMonthLabel(date: Date): string {
+  return SHORT_MONTHS[date.getMonth()];
+}
+
 /**
  * Parse a timestamp from the API.
  *
