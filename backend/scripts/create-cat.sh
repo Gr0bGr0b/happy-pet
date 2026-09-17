@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_URL="${API_URL:-http://localhost:8080/api/v1/cats}"
+# The trailing slash matters: the route is registered as "/", and POST to "/cats"
+# answers 307 rather than creating anything.
+API_URL="${API_URL:-http://localhost:8080/api/v1/cats/}"
 
 curl -s -X POST "$API_URL" \
   -H "Content-Type: application/json" \

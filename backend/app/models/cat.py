@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from enum import Enum
 
-from sqlalchemy import String, Boolean, Float, Date, DateTime, Text, Index
+from sqlalchemy import String, Boolean, Float, Date, DateTime, Integer, Text, Index
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -26,6 +26,10 @@ class Cat(Base):
     image_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     food_per_ration: Mapped[float | None] = mapped_column(Float, nullable=True)
     food_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # Hours between two injections — drives the cooldown on the dashboard CTA.
+    injection_interval_hours: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=12, server_default="12"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
