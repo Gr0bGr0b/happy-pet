@@ -20,14 +20,24 @@ Base de données : `happy_pet_db` (PostgreSQL 17.7)
 │ weight                   │   │     ┌─────────────────────┐
 │ image_url                │   │     │   weight_history    │
 │ food_per_ration          │   │     ├─────────────────────┤
-│ food_name                │   └────>│ id (PK)             │
-│ injection_interval_hours │         │ cat_id (FK)         │
-│ created_at               │         │ weight              │
-│ updated_at               │         │ recorded_at         │
-└──────────────────────────┘         └─────────────────────┘
+│ food_name                │   ├────>│ id (PK)             │
+│ injection_interval_hours │   │     │ cat_id (FK)         │
+│ created_at               │   │     │ weight              │
+│ updated_at               │   │     │ recorded_at         │
+└──────────────────────────┘   │     └─────────────────────┘
+                               │
+                               │     ┌─────────────────────┐
+                               │     │     cat_images      │
+                               │     ├─────────────────────┤
+                               └────>│ cat_id (PK, FK)     │
+                                     │ content_type        │
+                                     │ data                │
+                                     │ updated_at          │
+                                     └─────────────────────┘
 
 1 cat ──> * injection_logs           CASCADE à la suppression
 1 cat ──> * weight_history
+1 cat ──> 0..1 cat_images
 ```
 
 ---
@@ -102,6 +112,27 @@ la courbe de tendance possible. Une ligne est écrite à la création du chat et
 
 ---
 
+## Table : `cat_images`
+
+La photo du chat, une ligne par chat. Les octets vivent en base plutôt que sur un volume
+Docker : un seul `pg_dump` suffit alors à tout sauvegarder, et l'upload écrit les octets
+et `cats.image_url` dans la même transaction. Table séparée et non colonne sur `cats` :
+SQLAlchemy charge toutes les colonnes mappées par défaut, donc des octets sur `cats`
+seraient tirés à chaque `GET /cats/`.
+
+| Colonne        | Type        | Contraintes                | Description                |
+| -------------- | ----------- | -------------------------- | -------------------------- |
+| `cat_id`       | INTEGER     | PRIMARY KEY, FK → cats(id) | Une photo par chat         |
+| `content_type` | VARCHAR(32) | NOT NULL                   | image/jpeg, png ou webp    |
+| `data`         | BYTEA       | NOT NULL                   | Octets de l'image, ≤ 5 Mo  |
+| `updated_at`   | TIMESTAMP   | NOT NULL                   | Sert de clé de cache `?v=` |
+
+**Contraintes FK :**
+
+- `cat_id` → `cats.id` ON DELETE CASCADE
+
+---
+
 ## Correspondance Frontend ↔ Database
 
 | Frontend (TypeScript)        | Backend (SQL)                   | Notes                                 |
@@ -166,6 +197,13 @@ CREATE TABLE weight_history (
 
 CREATE INDEX idx_weight_history_cat_recorded
     ON weight_history(cat_id, recorded_at DESC);
+
+CREATE TABLE cat_images (
+    cat_id       INTEGER PRIMARY KEY REFERENCES cats(id) ON DELETE CASCADE,
+    content_type VARCHAR(32) NOT NULL,
+    data         BYTEA NOT NULL,
+    updated_at   TIMESTAMP NOT NULL
+);
 ```
 
 ---
@@ -203,6 +241,7 @@ alembic current
 | `alembic/versions/001_create_cats_table.py`               | Premiere migration : creation de la table `cats`                                                                    |
 | `alembic/versions/002_create_injection_logs_table.py`     | Creation de la table `injection_logs` (+ renomme l'index `created_at` de `cats`, mal nomme dans 001)                |
 | `alembic/versions/003_add_weight_history_and_interval.py` | Creation de `weight_history` (avec backfill d'un point par chat existant) + colonne `cats.injection_interval_hours` |
+| `alembic/versions/004_store_cat_images_in_db.py`          | Creation de `cat_images` : les photos passent du volume Docker a la base                                            |
 
 ### Note
 

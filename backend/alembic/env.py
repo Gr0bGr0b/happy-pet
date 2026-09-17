@@ -11,6 +11,7 @@ from app.database import Base
 from app.models.cat import Cat  # noqa: F401 — ensure model is registered
 from app.models.injection_log import InjectionLog  # noqa: F401 — ensure model is registered
 from app.models.weight_history import WeightHistory  # noqa: F401 — ensure model is registered
+from app.models.cat_image import CatImage  # noqa: F401 — ensure model is registered
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.db_url)
