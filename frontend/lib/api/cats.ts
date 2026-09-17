@@ -5,7 +5,7 @@ import type { Cat } from '@/types/cat';
 
 // The trailing slash is load-bearing. The backend registers these routes as "/", so
 // "/cats" (no slash) answers 307 and the redirect re-sends POST bodies cross-origin.
-// Do not "tidy" it away. backend/scripts/create-cat.sh is already broken by this.
+// Do not "tidy" it away.
 const CATS_PATH = '/cats/';
 
 export async function fetchCats(signal?: AbortSignal): Promise<Cat[]> {
