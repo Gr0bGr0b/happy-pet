@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, View } from 'react-native';
 import { CatPhoto } from '@/components/cat/CatPhoto';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -10,13 +10,81 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { PresetChips } from '@/components/ui/PresetChips';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { TextField } from '@/components/ui/TextField';
-import { BACKEND_SUPPORTS_CAT_WRITES } from '@/constants/features';
+import {
+  updateCat,
+  uploadCatImage,
+  type PickedImage
+} from '@/lib/api/catMutations';
 import { useCat } from '@/providers/CatProvider';
+import type { Cat, CatPatch } from '@/types/cat';
 
 const GRAM_PRESETS = [50, 100, 150, 200].map((v) => ({
   label: `${v} g`,
   value: v
 }));
+
+/** Same bounds the API enforces, so a bad value is caught before the round trip. */
+const WEIGHT_MAX_KG = 25;
+const FOOD_MAX_G = 2000;
+
+interface FormValues {
+  weight?: number;
+  foodPerRation?: number;
+  foodName: string;
+}
+
+/** Empty field -> null. Accepts the comma separator a French keyboard produces. */
+function parseNumber(input: string): number | null {
+  const trimmed = input.trim().replace(',', '.');
+  return trimmed === '' ? null : Number(trimmed);
+}
+
+/** Either the parsed form or the message to show — no state, no side effects. */
+function parseForm(
+  weight: string,
+  foodPerRation: string,
+  foodName: string
+): { values: FormValues } | { error: string } {
+  // Comparisons rather than a Number.isNaN guard: NaN fails them too.
+  const parsedWeight = parseNumber(weight);
+  if (
+    parsedWeight !== null &&
+    !(parsedWeight > 0 && parsedWeight <= WEIGHT_MAX_KG)
+  ) {
+    return { error: `Entrez un poids entre 0 et ${WEIGHT_MAX_KG} kg.` };
+  }
+
+  const parsedFood = parseNumber(foodPerRation);
+  if (parsedFood !== null && !(parsedFood >= 0 && parsedFood <= FOOD_MAX_G)) {
+    return { error: `Entrez une ration entre 0 et ${FOOD_MAX_G} g.` };
+  }
+
+  return {
+    values: {
+      weight: parsedWeight ?? undefined,
+      foodPerRation: parsedFood ?? undefined,
+      foodName: foodName.trim()
+    }
+  };
+}
+
+/** Only what differs from the stored cat: PATCH applies exactly what it receives. */
+function diffPatch(cat: Cat, values: FormValues): CatPatch {
+  const patch: CatPatch = {};
+  if (values.weight !== undefined && values.weight !== cat.weight) {
+    patch.weight = values.weight;
+  }
+  if (
+    values.foodPerRation !== undefined &&
+    values.foodPerRation !== cat.foodPerRation
+  ) {
+    patch.foodPerRation = values.foodPerRation;
+  }
+  if (values.foodName !== (cat.foodName ?? '')) {
+    patch.foodName = values.foodName;
+  }
+  return patch;
+}
 
 export default function EditCatScreen() {
   const router = useRouter();
@@ -26,7 +94,8 @@ export default function EditCatScreen() {
   const [weight, setWeight] = useState<string>('');
   const [foodPerRation, setFoodPerRation] = useState<string>('');
   const [foodName, setFoodName] = useState<string>('');
-  const [imageUri, setImageUri] = useState<string | undefined>();
+  const [picked, setPicked] = useState<PickedImage | undefined>();
+  const [saving, setSaving] = useState(false);
   const [initialised, setInitialised] = useState(false);
 
   if (loading) return <View className="flex-1 bg-light-bg dark:bg-dark-bg" />;
@@ -65,7 +134,39 @@ export default function EditCatScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      setImageUri(result.assets[0].uri);
+      const asset = result.assets[0];
+      setPicked({
+        uri: asset.uri,
+        mimeType: asset.mimeType,
+        fileName: asset.fileName ?? undefined
+      });
+    }
+  };
+
+  const save = async () => {
+    const parsed = parseForm(weight, foodPerRation, foodName);
+    if ('error' in parsed) {
+      Alert.alert('Valeur invalide', parsed.error);
+      return;
+    }
+    const patch = diffPatch(cat, parsed.values);
+
+    setSaving(true);
+    try {
+      // The photo has its own endpoint and stores image_url itself; the PATCH below
+      // carries the text fields only.
+      if (picked) await uploadCatImage(cat.id, picked);
+      if (Object.keys(patch).length > 0) await updateCat(cat.id, patch);
+
+      refetch();
+      router.back();
+    } catch (e) {
+      Alert.alert(
+        'Enregistrement échoué',
+        e instanceof Error ? e.message : String(e)
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -75,24 +176,11 @@ export default function EditCatScreen() {
       contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 40 }}
       keyboardShouldPersistTaps="handled"
     >
-      {!BACKEND_SUPPORTS_CAT_WRITES ? (
-        <View className="rounded-2xl bg-warm-50 p-4 dark:bg-warm/10">
-          <Text className="font-nunito-semibold text-[13px] text-warm-700 dark:text-warm-200">
-            Enregistrement indisponible
-          </Text>
-          <Text className="mt-1 font-nunito text-[12px] text-warm-700/80 dark:text-warm-200/80">
-            La modification du profil nécessite une mise à jour de l&apos;API
-            (PATCH /cats/&#123;id&#125;). Les champs ci-dessous sont
-            fonctionnels mais ne peuvent pas encore être sauvegardés.
-          </Text>
-        </View>
-      ) : null}
-
       <Card>
         <SectionHeader icon="camera" tone="primary" title="Photo" />
         <View className="items-center gap-4">
           <CatPhoto
-            uri={imageUri ?? cat.imageUrl}
+            uri={picked?.uri ?? cat.imageUrl}
             seed={cat.id}
             size={120}
             rounded={false}
@@ -104,11 +192,11 @@ export default function EditCatScreen() {
             onPress={pickImage}
             fullWidth={false}
           />
-          {imageUri ? (
+          {picked ? (
             <Badge
-              label="Aperçu local — non envoyé"
-              tone="warn"
-              icon="triangle-exclamation"
+              label="Enregistrez pour envoyer la photo"
+              tone="neutral"
+              icon="circle-info"
             />
           ) : null}
         </View>
@@ -153,10 +241,10 @@ export default function EditCatScreen() {
 
       <View className="gap-3">
         <Button
-          label="Enregistrer"
+          label={saving ? 'Enregistrement…' : 'Enregistrer'}
           icon="floppy-disk"
-          onPress={() => {}}
-          disabled={!BACKEND_SUPPORTS_CAT_WRITES}
+          onPress={save}
+          disabled={saving}
         />
         <Button label="Annuler" variant="ghost" onPress={() => router.back()} />
       </View>

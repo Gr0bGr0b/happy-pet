@@ -1,33 +1,28 @@
-import { useMemo } from 'react';
-import { BACKEND_SUPPORTS_WEIGHT_HISTORY } from '@/constants/features';
-import { demoWeightHistory } from '@/lib/demoWeightHistory';
+import { useAsync } from '@/hooks/useAsync';
+import { fetchWeightHistory } from '@/lib/api/cats';
 import type { Cat, WeightPoint } from '@/types/cat';
 
 export interface WeightHistory {
   points: WeightPoint[];
-  /** True while the series is fabricated — drives the warning badge on the card. */
-  isDemo: boolean;
+  error: string | null;
 }
 
 /**
- * Weight series for the trend chart.
+ * Weight series for the trend chart, oldest first.
  *
- * There is no weight history in the backend today, so this returns generated data
- * (see lib/demoWeightHistory.ts for how to remove it). WeightTrendCard never knows the
- * difference — when the endpoint ships, only this hook body changes.
+ * `cat.weight` is part of the key on purpose: saving a new weight writes a
+ * weight_history row on the backend, so the chart has to refetch when it changes.
  */
 export function useWeightHistory(cat: Cat | null): WeightHistory {
-  return useMemo(() => {
-    if (!cat) return { points: [], isDemo: false };
+  const { data, error } = useAsync<WeightPoint[]>(
+    (signal) => fetchWeightHistory(cat!.id, signal),
+    [cat?.id, cat?.weight],
+    { enabled: cat !== null }
+  );
 
-    if (!BACKEND_SUPPORTS_WEIGHT_HISTORY) {
-      return { points: demoWeightHistory(cat.weight, cat.id), isDemo: true };
-    }
-
-    // Real path lands here once fetchWeightHistory is wired into a provider.
-    return {
-      points: [{ weight: cat.weight, recordedAt: cat.updatedAt }],
-      isDemo: false
-    };
-  }, [cat]);
+  return {
+    // The endpoint answers newest first; the sparkline reads left to right.
+    points: data ? [...data].reverse() : [],
+    error
+  };
 }

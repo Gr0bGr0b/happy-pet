@@ -15,16 +15,15 @@ export interface Cat {
   foodName?: string;
   createdAt: Date;
   updatedAt: Date;
-  // Falls back to DEFAULT_INJECTION_INTERVAL_HOURS until the column ships.
+  // From cats.injection_interval_hours.
   injectionIntervalHours: number;
 }
 
-// Fields the edit view can change. Sent to PATCH /api/v1/cats/{id} once it exists.
+// Fields the edit view can change. Sent to PATCH /api/v1/cats/{id}.
 export interface CatPatch {
   weight?: number;
   foodPerRation?: number;
   foodName?: string;
-  imageUrl?: string;
 }
 
 export interface WeightPoint {

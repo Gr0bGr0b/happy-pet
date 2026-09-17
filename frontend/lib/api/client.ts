@@ -7,6 +7,15 @@ export const API_BASE_URL: string =
   (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) ??
   'http://localhost:8080/api/v1';
 
+// The backend stores photos as root-relative paths ("/static/cats/x.jpg") so the
+// database stays host-independent; the client joins them onto the origin it already
+// talks to, which keeps working when EXPO_PUBLIC_API_URL points at a LAN address.
+const API_ORIGIN = API_BASE_URL.match(/^https?:\/\/[^/]+/)?.[0] ?? '';
+
+export function resolveMediaUrl(url: string): string {
+  return url.startsWith('/') ? `${API_ORIGIN}${url}` : url;
+}
+
 export class ApiError extends Error {
   readonly status: number;
 

@@ -1,5 +1,5 @@
-// Fallback until cats.injection_interval_hours ships (see the backend follow-up issue).
-// Once the column exists the mapper picks it up and this constant stops being reached.
+// Stands in for cats.injection_interval_hours while the cat is still loading, so the
+// cooldown hook always has a number.
 export const DEFAULT_INJECTION_INTERVAL_HOURS = 12;
 
 // The log list shows a rolling window rather than calendar days, so an injection

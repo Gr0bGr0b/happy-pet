@@ -10,7 +10,7 @@ interface Props {
   title: string;
   /** Current value only — the recap carries no history in text. */
   subtitle: string;
-  /** Small right-aligned note, e.g. the simulated-data marker. */
+  /** Small right-aligned note, e.g. why the series is missing. */
   note?: string;
   /** Receives the measured inner width so the sparkline can size itself. */
   children: (width: number) => ReactNode;

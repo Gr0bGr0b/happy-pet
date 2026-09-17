@@ -56,15 +56,16 @@ export const Sparkline = ({
   const { palette } = useTheme();
   const totalHeight = height + BLEED + (labels ? LABEL_ROW + LABEL_GAP : 0);
 
-  if (values.length < 2 || width <= 0) {
+  if (values.length === 0 || width <= 0) {
     return <View style={{ height: totalHeight, width }} />;
   }
 
   const min = Math.min(...values);
   const max = Math.max(...values);
 
-  // A constant series gives chart-kit a zero range to divide by, which renders NaN
-  // coordinates and an empty chart. Draw the flat line directly instead.
+  // A single point, or a constant series, gives chart-kit a zero range to divide by,
+  // which renders NaN coordinates and an empty chart. Draw the flat line instead — a
+  // cat with one weighing still gets a tile that reads as a tile.
   if (max === min) {
     return (
       <View style={{ height: totalHeight, width, justifyContent: 'center' }}>

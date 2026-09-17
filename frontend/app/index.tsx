@@ -10,7 +10,10 @@ import { InjectionCta } from '@/components/injection/InjectionCta';
 import { RecentLogsCard } from '@/components/injection/RecentLogsCard';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Screen } from '@/components/ui/Screen';
-import { DOSAGE_DEFAULT } from '@/constants/injections';
+import {
+  DEFAULT_INJECTION_INTERVAL_HOURS,
+  DOSAGE_DEFAULT
+} from '@/constants/injections';
 import { useCooldown } from '@/hooks/useCooldown';
 import { useWeightHistory } from '@/hooks/useWeightHistory';
 import { useCat } from '@/providers/CatProvider';
@@ -25,7 +28,10 @@ export default function DashboardScreen() {
 
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const cooldown = useCooldown(lastLog, cat?.injectionIntervalHours ?? 12);
+  const cooldown = useCooldown(
+    lastLog,
+    cat?.injectionIntervalHours ?? DEFAULT_INJECTION_INTERVAL_HOURS
+  );
 
   if (loading) {
     return (
@@ -66,7 +72,7 @@ export default function DashboardScreen() {
               <WeightTrendCard
                 points={weight.points}
                 currentWeight={cat.weight}
-                isDemo={weight.isDemo}
+                unavailable={weight.error !== null}
               />
             </View>
             <View className="flex-1">

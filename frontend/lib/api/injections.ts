@@ -9,9 +9,10 @@ const INJECTIONS_PATH = '/injections/';
 /**
  * Returns every log for the cat, newest first.
  *
- * The endpoint has no date or limit parameters yet, so the 48h and 6-month windows are
+ * This endpoint takes no date or limit parameters, so the 48h and 6-month windows are
  * derived client-side in lib/stats.ts. At two injections a day that is ~730 rows a year:
- * fine now, but `since`/`limit` are in the backend follow-up contract.
+ * fine now, and GET /cats/{id}/weights shows the `since`/`limit` shape to copy when it
+ * stops being fine.
  */
 export async function fetchInjections(
   catId: number,

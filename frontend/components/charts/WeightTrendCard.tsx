@@ -6,18 +6,22 @@ import type { WeightPoint } from '@/types/cat';
 interface Props {
   points: WeightPoint[];
   currentWeight: number;
-  /** True while the series comes from lib/demoWeightHistory.ts. */
-  isDemo: boolean;
+  /** The series could not be loaded — the tile says so instead of showing a blank. */
+  unavailable?: boolean;
 }
 
-export const WeightTrendCard = ({ points, currentWeight, isDemo }: Props) => (
+export const WeightTrendCard = ({
+  points,
+  currentWeight,
+  unavailable = false
+}: Props) => (
   <TrendMiniCard
     icon="weight-hanging"
     iconColor="#00D09C"
     iconTint="rgba(0,208,156,0.12)"
     title="Poids"
     subtitle={`${currentWeight.toFixed(1)} kg`}
-    note={isDemo ? 'simulé' : undefined}
+    note={unavailable ? 'indisponible' : undefined}
   >
     {(width) => (
       <Sparkline

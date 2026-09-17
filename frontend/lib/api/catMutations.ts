@@ -1,58 +1,31 @@
 /**
- * The single seam for backend capabilities that do not exist yet.
+ * Writes on the cat resource.
  *
- * Every function below has its real HTTP implementation written and gated on a flag in
- * constants/features.ts. When the endpoint ships, flip the flag — that is the entire
- * change. Nothing else in the app knows these endpoints are missing.
- *
- * Contract for the follow-up backend issue:
- *
- *   PATCH /api/v1/cats/{cat_id}
- *     body: any subset of {name, date_of_birth, breed, sex, diabetes, color, weight,
- *           food_per_ration, food_name, image_url, injection_interval_hours}
- *     200 -> CatResponse | 404 | 422
- *     side effect: if `weight` changed, insert a weight_history row
- *
- *   POST /api/v1/cats/{cat_id}/image
- *     multipart/form-data, field "file", image/jpeg|png|webp, <= 5 MB
- *     201 -> {"image_url": "<absolute URL or /static/... path>"} | 404 | 413 | 415
- *
- *   GET /api/v1/cats/{cat_id}/weights?since=<ISO8601>&limit=<int>
- *     200 -> [{"id", "cat_id", "weight", "recorded_at"}] ordered recorded_at DESC
- *     new weight_history table; the migration must backfill one row per existing cat
- *     from cats.weight / cats.created_at so the chart is not empty on day one
+ * Both endpoints shipped with backend migration 003:
+ *   PATCH /api/v1/cats/{id}       — partial update, unknown fields answer 422
+ *   POST  /api/v1/cats/{id}/image — multipart, jpeg/png/webp, <= 5 MB
+ * A weight change on PATCH also writes a weight_history row, which is what
+ * fetchWeightHistory reads back for the trend chart.
  */
-import {
-  BACKEND_SUPPORTS_CAT_WRITES,
-  BACKEND_SUPPORTS_IMAGE_UPLOAD,
-  BACKEND_SUPPORTS_WEIGHT_HISTORY
-} from '@/constants/features';
-import { request, uploadFile } from '@/lib/api/client';
+import { Platform } from 'react-native';
+import { CATS_PATH } from '@/lib/api/cats';
+import { resolveMediaUrl, request, uploadFile } from '@/lib/api/client';
 import { mapCat } from '@/lib/api/mappers';
-import { parseApiDate } from '@/lib/date';
 import type { CatResponse } from '@/types/api';
-import type { Cat, CatPatch, WeightPoint } from '@/types/cat';
-
-export class BackendNotReadyError extends Error {
-  constructor(capability: string) {
-    super(`${capability} nécessite une mise à jour de l'API`);
-    this.name = 'BackendNotReadyError';
-  }
-}
+import type { Cat, CatPatch } from '@/types/cat';
 
 export async function updateCat(id: number, patch: CatPatch): Promise<Cat> {
-  if (!BACKEND_SUPPORTS_CAT_WRITES) {
-    throw new BackendNotReadyError('La modification du profil');
-  }
+  // Only the keys actually present are sent: the endpoint applies exactly what it
+  // receives, and it rejects unknown keys rather than ignoring them.
+  const body: Record<string, unknown> = {};
+  if (patch.weight !== undefined) body.weight = patch.weight;
+  if (patch.foodPerRation !== undefined)
+    body.food_per_ration = patch.foodPerRation;
+  if (patch.foodName !== undefined) body.food_name = patch.foodName;
 
-  const data = await request<CatResponse>(`/cats/${id}`, {
+  const data = await request<CatResponse>(`${CATS_PATH}${id}`, {
     method: 'PATCH',
-    body: {
-      weight: patch.weight,
-      food_per_ration: patch.foodPerRation,
-      food_name: patch.foodName,
-      image_url: patch.imageUrl
-    }
+    body
   });
   return mapCat(data);
 }
@@ -67,39 +40,30 @@ export async function uploadCatImage(
   id: number,
   asset: PickedImage
 ): Promise<{ imageUrl: string }> {
-  if (!BACKEND_SUPPORTS_IMAGE_UPLOAD) {
-    throw new BackendNotReadyError("L'envoi d'une photo");
-  }
-
   const form = new FormData();
-  // React Native's FormData takes this {uri, name, type} shape rather than a File.
-  form.append('file', {
-    uri: asset.uri,
-    name: asset.fileName ?? 'cat.jpg',
-    type: asset.mimeType ?? 'image/jpeg'
-  } as unknown as Blob);
+  const name = asset.fileName ?? 'cat.jpg';
+
+  if (Platform.OS === 'web') {
+    // The picker hands back a blob: URL on web, and the {uri, name, type} shape below
+    // would be serialised as "[object Object]". Re-read it as a real Blob, retyped
+    // when the browser left the type empty (the backend decides on Content-Type).
+    const blob = await fetch(asset.uri).then((r) => r.blob());
+    const typed = blob.type
+      ? blob
+      : blob.slice(0, blob.size, asset.mimeType ?? 'image/jpeg');
+    form.append('file', typed, name);
+  } else {
+    // React Native's FormData takes this {uri, name, type} shape rather than a File.
+    form.append('file', {
+      uri: asset.uri,
+      name,
+      type: asset.mimeType ?? 'image/jpeg'
+    } as unknown as Blob);
+  }
 
   const data = await uploadFile<{ image_url: string }>(
-    `/cats/${id}/image`,
+    `${CATS_PATH}${id}/image`,
     form
   );
-  return { imageUrl: data.image_url };
-}
-
-export async function fetchWeightHistory(
-  id: number,
-  signal?: AbortSignal
-): Promise<WeightPoint[]> {
-  if (!BACKEND_SUPPORTS_WEIGHT_HISTORY) {
-    throw new BackendNotReadyError("L'historique de poids");
-  }
-
-  const data = await request<{ weight: number; recorded_at: string }[]>(
-    `/cats/${id}/weights`,
-    { signal }
-  );
-  return data.map((row) => ({
-    weight: row.weight,
-    recordedAt: parseApiDate(row.recorded_at)
-  }));
+  return { imageUrl: resolveMediaUrl(data.image_url) };
 }

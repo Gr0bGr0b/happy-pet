@@ -13,10 +13,9 @@ export interface CatResponse {
   image_url: string | null;
   food_per_ration: number | null;
   food_name: string | null;
+  injection_interval_hours: number;
   created_at: string;
   updated_at: string;
-  // Not in the backend yet — see constants/features.ts.
-  injection_interval_hours?: number | null;
 }
 
 export interface InjectionLogResponse {
