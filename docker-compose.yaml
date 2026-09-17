@@ -37,6 +37,9 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       DB_NAME: happy_pet_db
+    # Uploaded cat photos live outside the image so a rebuild does not wipe them.
+    volumes:
+      - cat_images:/app/uploads
     restart: unless-stopped
     healthcheck:
       test:
@@ -69,3 +72,4 @@ services:
 
 volumes:
   postgres_data:
+  cat_images:

@@ -7,44 +7,49 @@ Base de données : `happy_pet_db` (PostgreSQL 17.7)
 ## Relations
 
 ```
-┌──────────────┐         ┌─────────────────────┐
-│     cats     │         │   injection_logs    │
-├──────────────┤         ├─────────────────────┤
-│ id (PK)      │───┐     │ id (PK)             │
-│ name         │   │     │ cat_id (FK) ─────────┘
-│ date_of_birth│   │     │ dosage              │
-│ breed        │   └────>│ notes               │
-│ sex          │         │ created_at          │
-│ diabetes     │         └─────────────────────┘
-│ color        │
-│ weight       │         1 cat ──> * injection_logs
-│ image_url    │
-│ food_per_ration        CASCADE à la suppression
-│ food_name    │
-│ created_at   │
-│ updated_at   │
-└──────────────┘
+┌──────────────────────────┐         ┌─────────────────────┐
+│           cats           │         │   injection_logs    │
+├──────────────────────────┤         ├─────────────────────┤
+│ id (PK)                  │───┬────>│ id (PK)             │
+│ name                     │   │     │ cat_id (FK)         │
+│ date_of_birth            │   │     │ dosage              │
+│ breed                    │   │     │ notes               │
+│ sex                      │   │     │ created_at          │
+│ diabetes                 │   │     └─────────────────────┘
+│ color                    │   │
+│ weight                   │   │     ┌─────────────────────┐
+│ image_url                │   │     │   weight_history    │
+│ food_per_ration          │   │     ├─────────────────────┤
+│ food_name                │   └────>│ id (PK)             │
+│ injection_interval_hours │         │ cat_id (FK)         │
+│ created_at               │         │ weight              │
+│ updated_at               │         │ recorded_at         │
+└──────────────────────────┘         └─────────────────────┘
+
+1 cat ──> * injection_logs           CASCADE à la suppression
+1 cat ──> * weight_history
 ```
 
 ---
 
 ## Table : `cats`
 
-| Colonne           | Type             | Contraintes                          | Description                    |
-| ----------------- | ---------------- | ------------------------------------ | ------------------------------ |
-| `id`              | SERIAL           | PRIMARY KEY                          | Identifiant auto-généré        |
-| `name`            | VARCHAR(20)      | NOT NULL                             | Nom du chat                    |
-| `date_of_birth`   | DATE             | NOT NULL                             | Date de naissance (âge dérivé) |
-| `breed`           | VARCHAR(30)      | NOT NULL                             | Race                           |
-| `sex`             | VARCHAR(6)       | NOT NULL, CHECK IN ('Male','Female') | Sexe                           |
-| `diabetes`        | BOOLEAN          | NOT NULL DEFAULT FALSE               | Diabétique ou non              |
-| `color`           | VARCHAR(20)      | NOT NULL                             | Couleur                        |
-| `weight`          | DOUBLE PRECISION | NOT NULL                             | Poids en kg                    |
-| `image_url`       | VARCHAR(255)     | NULLABLE                             | URL photo de profil            |
-| `food_per_ration` | DOUBLE PRECISION | NULLABLE                             | Grammes par repas              |
-| `food_name`       | VARCHAR(50)      | NULLABLE                             | Nom de la nourriture           |
-| `created_at`      | TIMESTAMP        | NOT NULL DEFAULT NOW()               | Date de création               |
-| `updated_at`      | TIMESTAMP        | NOT NULL DEFAULT NOW()               | Dernière mise à jour           |
+| Colonne                    | Type             | Contraintes                          | Description                    |
+| -------------------------- | ---------------- | ------------------------------------ | ------------------------------ |
+| `id`                       | SERIAL           | PRIMARY KEY                          | Identifiant auto-généré        |
+| `name`                     | VARCHAR(20)      | NOT NULL                             | Nom du chat                    |
+| `date_of_birth`            | DATE             | NOT NULL                             | Date de naissance (âge dérivé) |
+| `breed`                    | VARCHAR(30)      | NOT NULL                             | Race                           |
+| `sex`                      | VARCHAR(6)       | NOT NULL, CHECK IN ('Male','Female') | Sexe                           |
+| `diabetes`                 | BOOLEAN          | NOT NULL DEFAULT FALSE               | Diabétique ou non              |
+| `color`                    | VARCHAR(20)      | NOT NULL                             | Couleur                        |
+| `weight`                   | DOUBLE PRECISION | NOT NULL                             | Poids en kg                    |
+| `image_url`                | VARCHAR(255)     | NULLABLE                             | URL photo de profil            |
+| `food_per_ration`          | DOUBLE PRECISION | NULLABLE                             | Grammes par repas              |
+| `food_name`                | VARCHAR(50)      | NULLABLE                             | Nom de la nourriture           |
+| `injection_interval_hours` | INTEGER          | NOT NULL DEFAULT 12                  | Heures entre deux injections   |
+| `created_at`               | TIMESTAMP        | NOT NULL DEFAULT NOW()               | Date de création               |
+| `updated_at`               | TIMESTAMP        | NOT NULL DEFAULT NOW()               | Dernière mise à jour           |
 
 **Index :**
 
@@ -73,22 +78,49 @@ Base de données : `happy_pet_db` (PostgreSQL 17.7)
 
 ---
 
+## Table : `weight_history`
+
+Une ligne par pesée. `cats.weight` reste le poids courant ; cette table est ce qui rend
+la courbe de tendance possible. Une ligne est écrite à la création du chat et à chaque
+`PATCH` qui change le poids.
+
+| Colonne       | Type             | Contraintes             | Description             |
+| ------------- | ---------------- | ----------------------- | ----------------------- |
+| `id`          | SERIAL           | PRIMARY KEY             | Identifiant auto-généré |
+| `cat_id`      | INTEGER          | NOT NULL, FK → cats(id) | Référence au chat       |
+| `weight`      | DOUBLE PRECISION | NOT NULL                | Poids en kg             |
+| `recorded_at` | TIMESTAMP        | NOT NULL DEFAULT NOW()  | Date de la pesée        |
+
+**Contraintes FK :**
+
+- `cat_id` → `cats.id` ON DELETE CASCADE
+
+**Index :**
+
+- `idx_weight_history_cat_recorded` sur `(cat_id, recorded_at DESC)` — sert la seule
+  requête existante : les pesées d'un chat, de la plus récente à la plus ancienne
+
+---
+
 ## Correspondance Frontend ↔ Database
 
-| Frontend (TypeScript)     | Backend (SQL)               | Notes                                 |
-| ------------------------- | --------------------------- | ------------------------------------- |
-| `Cat.id`                  | `cats.id`                   | string côté frontend, SERIAL côté DB  |
-| `Cat.name`                | `cats.name`                 |                                       |
-| `Cat.breed`               | `cats.breed`                |                                       |
-| `Cat.color`               | `cats.color`                |                                       |
-| `Cat.weight`              | `cats.weight`               |                                       |
-| `Cat.dateOfBirth`         | `cats.date_of_birth`        | `calculateAge()` dérive l'âge affiché |
-| `Cat.imageUrl`            | `cats.image_url`            | Non utilisé pour l'instant            |
-| `Cat.foodPerRation`       | `cats.food_per_ration`      | État local → à persister via API      |
-| `foodName` (état local)   | `cats.food_name`            | État local → à persister via API      |
-| `InjectionLogs.date`      | `injection_logs.created_at` |                                       |
-| `InjectionLogs.unit`      | `injection_logs.dosage`     |                                       |
-| `DiabetesInjection.notes` | `injection_logs.notes`      | Interface définie mais non utilisée   |
+| Frontend (TypeScript)        | Backend (SQL)                   | Notes                                 |
+| ---------------------------- | ------------------------------- | ------------------------------------- |
+| `Cat.id`                     | `cats.id`                       | string côté frontend, SERIAL côté DB  |
+| `Cat.name`                   | `cats.name`                     |                                       |
+| `Cat.breed`                  | `cats.breed`                    |                                       |
+| `Cat.color`                  | `cats.color`                    |                                       |
+| `Cat.weight`                 | `cats.weight`                   |                                       |
+| `Cat.dateOfBirth`            | `cats.date_of_birth`            | `calculateAge()` dérive l'âge affiché |
+| `Cat.imageUrl`               | `cats.image_url`                | Chemin `/static/...`, résolu côté app |
+| `Cat.foodPerRation`          | `cats.food_per_ration`          | Édité via `PATCH /cats/{id}`          |
+| `Cat.foodName`               | `cats.food_name`                | Édité via `PATCH /cats/{id}`          |
+| `Cat.injectionIntervalHours` | `cats.injection_interval_hours` | Pilote le cooldown du bouton          |
+| `WeightPoint.weight`         | `weight_history.weight`         | Série de la courbe de poids           |
+| `WeightPoint.recordedAt`     | `weight_history.recorded_at`    |                                       |
+| `InjectionLogs.date`         | `injection_logs.created_at`     |                                       |
+| `InjectionLogs.unit`         | `injection_logs.dosage`         |                                       |
+| `DiabetesInjection.notes`    | `injection_logs.notes`          | Interface définie mais non utilisée   |
 
 ---
 
@@ -107,6 +139,7 @@ CREATE TABLE cats (
     image_url       VARCHAR(255),
     food_per_ration DOUBLE PRECISION,
     food_name       VARCHAR(50),
+    injection_interval_hours INTEGER NOT NULL DEFAULT 12,
     created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -123,6 +156,16 @@ CREATE TABLE injection_logs (
 
 CREATE INDEX idx_injection_logs_cat_id ON injection_logs(cat_id);
 CREATE INDEX idx_injection_logs_created_at ON injection_logs(created_at DESC);
+
+CREATE TABLE weight_history (
+    id          SERIAL PRIMARY KEY,
+    cat_id      INTEGER NOT NULL REFERENCES cats(id) ON DELETE CASCADE,
+    weight      DOUBLE PRECISION NOT NULL,
+    recorded_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_weight_history_cat_recorded
+    ON weight_history(cat_id, recorded_at DESC);
 ```
 
 ---
@@ -153,12 +196,13 @@ alembic current
 
 ### Fichiers
 
-| Fichier                                               | Role                                                                                                 |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `alembic.ini`                                         | Configuration Alembic (URL de DB, chemin du script)                                                  |
-| `alembic/env.py`                                      | Environnement async, charge les models SQLAlchemy                                                    |
-| `alembic/versions/001_create_cats_table.py`           | Premiere migration : creation de la table `cats`                                                     |
-| `alembic/versions/002_create_injection_logs_table.py` | Creation de la table `injection_logs` (+ renomme l'index `created_at` de `cats`, mal nomme dans 001) |
+| Fichier                                                   | Role                                                                                                                |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `alembic.ini`                                             | Configuration Alembic (URL de DB, chemin du script)                                                                 |
+| `alembic/env.py`                                          | Environnement async, charge les models SQLAlchemy                                                                   |
+| `alembic/versions/001_create_cats_table.py`               | Premiere migration : creation de la table `cats`                                                                    |
+| `alembic/versions/002_create_injection_logs_table.py`     | Creation de la table `injection_logs` (+ renomme l'index `created_at` de `cats`, mal nomme dans 001)                |
+| `alembic/versions/003_add_weight_history_and_interval.py` | Creation de `weight_history` (avec backfill d'un point par chat existant) + colonne `cats.injection_interval_hours` |
 
 ### Note
 
