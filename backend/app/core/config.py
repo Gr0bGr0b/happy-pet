@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     DB_PASSWORD: str = "postgres"
     DB_NAME: str = "happy_pet_db"
 
+    # Cap on an uploaded cat photo, enforced while the body is read.
+    MAX_IMAGE_BYTES: int = 5 * 1024 * 1024
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
     @property
