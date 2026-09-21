@@ -1,3 +1,10 @@
+# Two profiles:
+#   docker compose --profile dev up    hot reload, source mounted from the host
+#   docker compose --profile prod up   production images, no reload
+#
+# Set COMPOSE_PROFILES in .env to pick a default. postgres has no profile, so it
+# starts either way.
+
 services:
   postgres:
     image: postgres:17.7
@@ -21,11 +28,15 @@ services:
       retries: 12
       start_period: 10s
 
-  # Backend
+  # ---- production ---------------------------------------------------------
+
   backend:
+    profiles: ['prod']
     build:
       context: ./backend
       dockerfile: Dockerfile
+      target: runtime
+    image: happy-pet-backend
     container_name: backend_app
     ports:
       - '8080:8080'
@@ -49,16 +60,17 @@ services:
       retries: 5
       start_period: 15s
 
-  # Frontend
   frontend:
+    profiles: ['prod']
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: runtime
       args:
-        # Baked into the bundle at build time — override and rebuild to point the app at
-        # a LAN address for testing on a real phone:
-        #   API_URL=http://192.168.1.20:8080/api/v1 docker compose up --build frontend
+        # Metro inlines EXPO_PUBLIC_* at build time, so pointing the app
+        # elsewhere needs a rebuild.
         EXPO_PUBLIC_API_URL: ${API_URL:-http://localhost:8080/api/v1}
+    image: happy-pet-frontend
     container_name: frontend_app
     ports:
       - '3000:3000'
@@ -66,6 +78,76 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
+
+  # ---- development --------------------------------------------------------
+
+  backend-dev:
+    profiles: ['dev']
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: dev
+    # Separate tag from the prod image, so building one never overwrites the other.
+    image: happy-pet-backend-dev
+    container_name: backend_dev
+    ports:
+      - '8080:8080'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    environment:
+      DB_HOST: postgres
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: happy_pet_db
+      # Keep .pyc out of the bind-mounted host tree.
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONUNBUFFERED: '1'
+      # Set to true if reloads are missed because inotify does not cross the mount.
+      WATCHFILES_FORCE_POLLING: ${WATCHFILES_FORCE_POLLING:-false}
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'python -c "import urllib.request; urllib.request.urlopen(''http://localhost:8080/health'')"'
+        ]
+      interval: 60s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  frontend-dev:
+    profiles: ['dev']
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: dev
+    image: happy-pet-frontend-dev
+    container_name: frontend_dev
+    ports:
+      - '3000:3000'
+    depends_on:
+      backend-dev:
+        condition: service_healthy
+    volumes:
+      - ./frontend:/app
+      # Anonymous volumes: keep the image's Linux node_modules and Expo cache
+      # instead of the host's.
+      - /app/node_modules
+      - /app/.expo
+    environment:
+      # Read per request by the dev server, so no rebuild needed to change it.
+      EXPO_PUBLIC_API_URL: ${API_URL:-http://localhost:8080/api/v1}
+      # Without this the CLI tries to open a browser and, because the container
+      # shares the host's WSL2 kernel, dies on `spawn cmd.exe ENOENT`.
+      BROWSER: none
+    restart: unless-stopped
+    # Metro's interactive shortcuts need a TTY.
+    stdin_open: true
+    tty: true
 
 volumes:
   postgres_data:
