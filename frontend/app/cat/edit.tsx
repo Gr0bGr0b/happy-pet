@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { CatPhoto } from '@/components/cat/CatPhoto';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -10,7 +10,12 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { PresetChips } from '@/components/ui/PresetChips';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { TextField } from '@/components/ui/TextField';
+import { ApiError } from '@/lib/api/client';
 import {
+  IMAGE_TOO_LARGE_MESSAGE,
+  MAX_IMAGE_BYTES,
+  MAX_IMAGE_MB,
+  PHOTO_ERROR_STATUSES,
   updateCat,
   uploadCatImage,
   type PickedImage
@@ -95,6 +100,7 @@ export default function EditCatScreen() {
   const [foodPerRation, setFoodPerRation] = useState<string>('');
   const [foodName, setFoodName] = useState<string>('');
   const [picked, setPicked] = useState<PickedImage | undefined>();
+  const [photoError, setPhotoError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
   const [initialised, setInitialised] = useState(false);
 
@@ -135,10 +141,17 @@ export default function EditCatScreen() {
 
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
+      if (asset.fileSize !== undefined && asset.fileSize > MAX_IMAGE_BYTES) {
+        setPicked(undefined);
+        setPhotoError(IMAGE_TOO_LARGE_MESSAGE);
+        return;
+      }
+      setPhotoError(undefined);
       setPicked({
         uri: asset.uri,
         mimeType: asset.mimeType,
-        fileName: asset.fileName ?? undefined
+        fileName: asset.fileName ?? undefined,
+        fileSize: asset.fileSize
       });
     }
   };
@@ -161,6 +174,13 @@ export default function EditCatScreen() {
       refetch();
       router.back();
     } catch (e) {
+      if (e instanceof ApiError && PHOTO_ERROR_STATUSES.includes(e.status)) {
+        // Shown next to the photo rather than in an alert, and the photo is dropped
+        // so a retry saves the other fields.
+        setPicked(undefined);
+        setPhotoError(e.message);
+        return;
+      }
       Alert.alert(
         'Enregistrement échoué',
         e instanceof Error ? e.message : String(e)
@@ -185,14 +205,28 @@ export default function EditCatScreen() {
             size={120}
             rounded={false}
           />
-          <Button
-            label="Choisir une photo"
-            icon="image"
-            variant="ghost"
-            onPress={pickImage}
-            fullWidth={false}
-          />
-          {picked ? (
+          <View className="items-center gap-1.5">
+            <Button
+              label="Choisir une photo"
+              icon="image"
+              variant="ghost"
+              onPress={pickImage}
+              fullWidth={false}
+            />
+            <Text className="font-nunito text-[12px] text-muted dark:text-muted-light">
+              JPEG, PNG ou WebP · {MAX_IMAGE_MB} Mo max
+            </Text>
+          </View>
+          {/* Plain text rather than a Badge: a full sentence wraps badly in a pill. */}
+          {photoError ? (
+            <Text
+              className="text-center font-nunito-semibold text-[13px] text-danger"
+              accessibilityRole="alert"
+              accessibilityLiveRegion="polite"
+            >
+              {photoError}
+            </Text>
+          ) : picked ? (
             <Badge
               label="Enregistrez pour envoyer la photo"
               tone="neutral"

@@ -9,7 +9,12 @@
  */
 import { Platform } from 'react-native';
 import { CATS_PATH } from '@/lib/api/cats';
-import { resolveMediaUrl, request, uploadFile } from '@/lib/api/client';
+import {
+  ApiError,
+  resolveMediaUrl,
+  request,
+  uploadFile
+} from '@/lib/api/client';
 import { mapCat } from '@/lib/api/mappers';
 import type { CatResponse } from '@/types/api';
 import type { Cat, CatPatch } from '@/types/cat';
@@ -30,10 +35,22 @@ export async function updateCat(id: number, patch: CatPatch): Promise<Cat> {
   return mapCat(data);
 }
 
+/** Mirrors the backend's MAX_IMAGE_BYTES, so an oversized photo is refused before upload. */
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+export const MAX_IMAGE_MB = MAX_IMAGE_BYTES / (1024 * 1024);
+export const IMAGE_TOO_LARGE_MESSAGE = `La photo dépasse ${MAX_IMAGE_MB} Mo. Choisissez une image plus légère.`;
+const IMAGE_UNSUPPORTED_MESSAGE =
+  'Format non pris en charge. Choisissez une image JPEG, PNG ou WebP.';
+
+/** Upload statuses that are the photo's fault: the screen shows them next to it. */
+export const PHOTO_ERROR_STATUSES = [413, 415];
+
 export interface PickedImage {
   uri: string;
   mimeType?: string;
   fileName?: string;
+  /** Bytes, when the picker reports it (not guaranteed on every platform). */
+  fileSize?: number;
 }
 
 export async function uploadCatImage(
@@ -61,9 +78,21 @@ export async function uploadCatImage(
     } as unknown as Blob);
   }
 
-  const data = await uploadFile<{ image_url: string }>(
-    `${CATS_PATH}${id}/image`,
-    form
-  );
-  return { imageUrl: resolveMediaUrl(data.image_url) };
+  try {
+    const data = await uploadFile<{ image_url: string }>(
+      `${CATS_PATH}${id}/image`,
+      form
+    );
+    return { imageUrl: resolveMediaUrl(data.image_url) };
+  } catch (e) {
+    // The picker can't always report a size or type, so the server is the backstop;
+    // its English detail is replaced by a message the user can act on.
+    if (e instanceof ApiError && e.status === 413) {
+      throw new ApiError(413, IMAGE_TOO_LARGE_MESSAGE);
+    }
+    if (e instanceof ApiError && e.status === 415) {
+      throw new ApiError(415, IMAGE_UNSUPPORTED_MESSAGE);
+    }
+    throw e;
+  }
 }

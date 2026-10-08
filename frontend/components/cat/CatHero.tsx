@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CatPhoto } from '@/components/cat/CatPhoto';
 import { Badge } from '@/components/ui/Badge';
 import { IconButton } from '@/components/ui/IconButton';
@@ -13,15 +14,35 @@ interface Props {
 
 export const CatHero = ({ cat, onEdit }: Props) => {
   const { isDark, toggleTheme } = useTheme();
+  const insets = useSafeAreaInsets();
   const age = calculateAge(cat.dateOfBirth);
 
   return (
     <View
-      className="rounded-b-[28px] px-5 pb-6 pt-4"
-      style={{ backgroundColor: isDark ? '#3A2D6B' : '#6C63FF' }}
+      className="rounded-b-[24px] px-4 pb-4"
+      // The dashboard hides the stack header, so the hero owns the status-bar inset.
+      style={{
+        backgroundColor: isDark ? '#3A2D6B' : '#6C63FF',
+        paddingTop: insets.top + 12
+      }}
     >
-      {/* The dead user-avatar icon is gone; the photo takes that space below. */}
-      <View className="mb-3 flex-row items-center justify-end gap-2">
+      {/* No cover image to make room for: photo, name and actions share one row. */}
+      <View className="mb-3 flex-row items-center gap-3">
+        <CatPhoto uri={cat.imageUrl} seed={cat.id} size={56} />
+        <View className="flex-1">
+          <Text
+            className="font-nunito-extrabold text-[22px] text-white"
+            numberOfLines={1}
+          >
+            {cat.name}
+          </Text>
+          <Text
+            className="font-nunito text-[13px] text-white/80"
+            numberOfLines={1}
+          >
+            {cat.breed}
+          </Text>
+        </View>
         <IconButton
           icon={isDark ? 'circle-half-stroke' : 'moon'}
           onPress={toggleTheme}
@@ -36,18 +57,6 @@ export const CatHero = ({ cat, onEdit }: Props) => {
           background="#FFFFFF"
           label="Modifier le profil du chat"
         />
-      </View>
-
-      <View className="mb-4 flex-row items-center gap-4">
-        <CatPhoto uri={cat.imageUrl} seed={cat.id} />
-        <View className="flex-1">
-          <Text className="font-nunito-extrabold text-[26px] text-white">
-            {cat.name}
-          </Text>
-          <Text className="mt-0.5 font-nunito text-[13px] text-white/80">
-            {cat.breed}
-          </Text>
-        </View>
       </View>
 
       <View className="flex-row gap-2">

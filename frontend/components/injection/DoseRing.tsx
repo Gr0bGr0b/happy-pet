@@ -8,7 +8,7 @@ interface Props {
 /**
  * Shows the dose only. The border is deliberately neutral: it previously encoded the
  * cooldown state, which put two unrelated variables on one object. Cooldown now has
- * its own CooldownBar.
+ * its own progress fill in InjectionCta.
  */
 export const DoseRing = ({ dose, size = 150 }: Props) => (
   <View
