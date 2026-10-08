@@ -14,10 +14,13 @@ export interface WeightHistory {
  * weight_history row on the backend, so the chart has to refetch when it changes.
  */
 export function useWeightHistory(cat: Cat | null): WeightHistory {
+  // Read outside the closure: the React Compiler hoists a `cat!.id` inside it into a
+  // render-time memo dependency, which throws while there is no cat yet.
+  const catId = cat?.id;
   const { data, error } = useAsync<WeightPoint[]>(
-    (signal) => fetchWeightHistory(cat!.id, signal),
-    [cat?.id, cat?.weight],
-    { enabled: cat !== null }
+    (signal) => fetchWeightHistory(catId as number, signal),
+    [catId, cat?.weight],
+    { enabled: catId !== undefined }
   );
 
   return {
