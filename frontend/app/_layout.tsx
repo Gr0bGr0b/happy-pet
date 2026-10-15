@@ -42,6 +42,7 @@ export default function RootLayout() {
               <StatusBar style="auto" />
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="index" />
+                <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
                 <Stack.Screen
                   name="cat/edit"
                   options={{

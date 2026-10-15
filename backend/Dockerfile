@@ -16,7 +16,8 @@ RUN pip install --no-cache-dir "uvicorn[standard]>=0.38.0"
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload --reload-dir /app/app"]
+# seed.py is a no-op unless SEED_DEMO_CAT=true; the runtime stage never calls it.
+CMD ["sh", "-c", "alembic upgrade head && python seed.py && uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload --reload-dir /app/app"]
 
 # ---- runtime --------------------------------------------------------------
 FROM base AS runtime

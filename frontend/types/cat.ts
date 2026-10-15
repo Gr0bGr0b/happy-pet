@@ -19,6 +19,18 @@ export interface Cat {
   injectionIntervalHours: number;
 }
 
+// Fields the start view collects. Sent to POST /api/v1/cats/.
+export interface CatDraft {
+  name: string;
+  /** ISO date, "YYYY-MM-DD". */
+  dateOfBirth: string;
+  breed: string;
+  sex: Sex;
+  color: string;
+  weight: number;
+  diabetes: boolean;
+}
+
 // Fields the edit view can change. Sent to PATCH /api/v1/cats/{id}.
 export interface CatPatch {
   weight?: number;

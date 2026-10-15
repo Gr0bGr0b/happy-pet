@@ -1,7 +1,8 @@
 /**
  * Writes on the cat resource.
  *
- * Both endpoints shipped with backend migration 003:
+ *   POST  /api/v1/cats/           — create, used by the start view
+ * The two below shipped with backend migration 003:
  *   PATCH /api/v1/cats/{id}       — partial update, unknown fields answer 422
  *   POST  /api/v1/cats/{id}/image — multipart, jpeg/png/webp, <= 5 MB
  * A weight change on PATCH also writes a weight_history row, which is what
@@ -17,7 +18,23 @@ import {
 } from '@/lib/api/client';
 import { mapCat } from '@/lib/api/mappers';
 import type { CatResponse } from '@/types/api';
-import type { Cat, CatPatch } from '@/types/cat';
+import type { Cat, CatDraft, CatPatch } from '@/types/cat';
+
+export async function createCat(draft: CatDraft): Promise<Cat> {
+  const data = await request<CatResponse>(CATS_PATH, {
+    method: 'POST',
+    body: {
+      name: draft.name,
+      date_of_birth: draft.dateOfBirth,
+      breed: draft.breed,
+      sex: draft.sex,
+      color: draft.color,
+      weight: draft.weight,
+      diabetes: draft.diabetes
+    }
+  });
+  return mapCat(data);
+}
 
 export async function updateCat(id: number, patch: CatPatch): Promise<Cat> {
   // Only the keys actually present are sent: the endpoint applies exactly what it

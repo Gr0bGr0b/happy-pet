@@ -14,11 +14,15 @@ export async function fetchCats(signal?: AbortSignal): Promise<Cat[]> {
   return data.map(mapCat);
 }
 
-/** The app is single-cat for now: the dashboard shows the first one. */
-export async function fetchPrimaryCat(signal?: AbortSignal): Promise<Cat> {
+/**
+ * The app is single-cat for now: the dashboard shows the first one. Null on a fresh
+ * install, which sends the user to the start view rather than an error.
+ */
+export async function fetchPrimaryCat(
+  signal?: AbortSignal
+): Promise<Cat | null> {
   const cats = await fetchCats(signal);
-  if (cats.length === 0) throw new Error('Aucun chat enregistré');
-  return cats[0];
+  return cats[0] ?? null;
 }
 
 /** Weight points recorded for the cat, newest first. */

@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { WeightTrendCard } from '@/components/charts/WeightTrendCard';
@@ -40,6 +40,9 @@ export default function DashboardScreen() {
       </View>
     );
   }
+
+  // First launch: no cat yet, so collect one before showing the dashboard.
+  if (!error && !cat) return <Redirect href="/welcome" />;
 
   if (error || !cat) {
     return (

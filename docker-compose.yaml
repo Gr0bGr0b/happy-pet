@@ -105,6 +105,9 @@ services:
       # Keep .pyc out of the bind-mounted host tree.
       PYTHONDONTWRITEBYTECODE: '1'
       PYTHONUNBUFFERED: '1'
+      # Seeds a demo cat on an empty database, skipping the start view. Set to
+      # false to try the first-launch flow.
+      SEED_DEMO_CAT: ${SEED_DEMO_CAT:-true}
       # Set to true if reloads are missed because inotify does not cross the mount.
       WATCHFILES_FORCE_POLLING: ${WATCHFILES_FORCE_POLLING:-false}
     restart: unless-stopped
